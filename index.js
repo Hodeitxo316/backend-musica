@@ -17,66 +17,13 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 6000) {
   }
 }
 
-// Búsqueda usando la API interna de YouTube (InnerTube)
-async function getVideoId(query) {
-  try {
-    const res = await fetchWithTimeout(
-      'https://www.youtube.com/youtubei/v1/search',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 Safari/537.36'
-        },
-        body: JSON.stringify({
-          context: {
-            client: {
-              clientName: 'WEB',
-              clientVersion: '2.20240101.00.00'
-            }
-          },
-          query: query
-        })
-      },
-      6000
-    );
-
-    if (res.ok) {
-      const text = await res.text();
-      const match = text.match(/"videoId":"([a-zA-Z0-9_-]{11})"/);
-      if (match && match[1]) return match[1];
-    }
-  } catch (e) {}
-
-  // Respaldo mediante proxies secundarios
-  const searchNodes = [
-    'https://pipedapi.drgns.space/search?filter=music_songs&q=',
-    'https://inv.tux.pizza/api/v1/search?type=video&q='
-  ];
-
-  for (const node of searchNodes) {
-    try {
-      const res = await fetchWithTimeout(node + encodeURIComponent(query), {}, 4000);
-      if (res.ok) {
-        const data = await res.json();
-        const items = data.items || data;
-        if (Array.isArray(items) && items.length > 0) {
-          const first = items[0];
-          const id = first.videoId || (first.url ? first.url.split('v=')[1] : null);
-          if (id) return id;
-        }
-      }
-    } catch (e) {}
-  }
-
-  return null;
-}
-
 async function getAudioUrl(videoId) {
   const youtubeUrl = `https://www.youtube.com/watch?v=${videoId}`;
+  
   const cobaltNodes = [
     'https://api.cobalt.tools',
-    'https://cobalt-api.kwippy.com'
+    'https://cobalt-api.kwippy.com',
+    'https://co.wuk.sh'
   ];
 
   for (const node of cobaltNodes) {
@@ -95,7 +42,7 @@ async function getAudioUrl(videoId) {
             audioBitrate: '128'
           })
         },
-        7000
+        6000
       );
       if (res.ok) {
         const json = await res.json();
@@ -108,7 +55,8 @@ async function getAudioUrl(videoId) {
   const streamEndpoints = [
     `https://pipedapi.adminforge.de/streams/${videoId}`,
     `https://pipedapi.privacy.com.de/streams/${videoId}`,
-    `https://inv.tux.pizza/api/v1/videos/${videoId}`
+    `https://inv.tux.pizza/api/v1/videos/${videoId}`,
+    `https://invidious.privacydev.net/api/v1/videos/${videoId}`
   ];
 
   for (const endpoint of streamEndpoints) {
@@ -133,13 +81,10 @@ async function getAudioUrl(videoId) {
 }
 
 app.get('/stream', async (req, res) => {
-  const { query } = req.query;
-  if (!query) return res.status(400).json({ error: 'Falta query' });
+  const { videoId } = req.query;
+  if (!videoId) return res.status(400).json({ error: 'Falta videoId' });
 
   try {
-    const videoId = await getVideoId(query);
-    if (!videoId) return res.status(404).json({ error: 'Video no encontrado' });
-
     const audioUrl = await getAudioUrl(videoId);
     if (!audioUrl) return res.status(500).json({ error: 'Stream no disponible' });
 
