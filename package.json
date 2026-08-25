@@ -1,0 +1,13 @@
+{
+  "name": "backend-musica",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@distube/ytdl-core": "^4.15.8",
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}
